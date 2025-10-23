@@ -56,8 +56,13 @@ export default function Home() {
       try {
         setConnectionTesting(true)
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://genz-ai-backend4.onrender.com'
+        console.log('Testing backend connection to:', backendUrl)
+        
         const response = await fetch(`${backendUrl}/health`)
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        
         const data = await response.json()
+        console.log('Backend health response:', data)
         setBackendOnline(data.status === 'healthy')
       } catch (error) {
         console.error('Backend connection failed:', error)
@@ -80,15 +85,27 @@ export default function Home() {
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://genz-ai-backend4.onrender.com'
+      console.log('Sending request to:', `${backendUrl}/ask`)
+      
       const response = await fetch(`${backendUrl}/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ question: input })
       })
 
-      if (!response.ok) throw new Error('Failed to get response')
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
       
       const data = await response.json()
+      console.log('AI Response:', data)
+      
       const aiMessage: Message = { 
         role: 'assistant', 
         content: data.answer,
@@ -100,7 +117,7 @@ export default function Home() {
       console.error('API Error:', error)
       const errorMessage: Message = { 
         role: 'assistant', 
-        content: 'I apologize, but I encountered an error. Please check your internet connection and try again. If the problem persists, the AI services might be temporarily unavailable.' 
+        content: 'I apologize, but I encountered an error while connecting to the AI services. Please try again in a moment.' 
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -120,9 +137,17 @@ export default function Home() {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://genz-ai-backend4.onrender.com'
       const response = await fetch(`${backendUrl}/generate-image`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ prompt: input, size: "1024x1024" })
       })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
       
       const data = await response.json()
       if (data.success) {
@@ -134,7 +159,7 @@ export default function Home() {
         }
         setMessages(prev => [...prev, aiMessage])
       } else {
-        throw new Error(data.error)
+        throw new Error(data.error || 'Image generation failed')
       }
     } catch (error) {
       console.error('Image generation error:', error)
@@ -155,7 +180,10 @@ export default function Home() {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://genz-ai-backend4.onrender.com'
       const response = await fetch(`${backendUrl}/text-to-speech`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ text, voice_id: "Rachel" })
       })
       
@@ -164,6 +192,8 @@ export default function Home() {
         const url = URL.createObjectURL(blob)
         const audio = new Audio(url)
         audio.play()
+      } else {
+        console.error('TTS failed with status:', response.status)
       }
     } catch (error) {
       console.error('Text-to-speech failed:', error)
@@ -191,10 +221,10 @@ export default function Home() {
 
   // Quick test prompts
   const quickPrompts = [
+    "Hello, how are you?",
     "Explain quantum computing in simple terms",
     "Write a Python function to calculate factorial",
-    "What are the benefits of meditation?",
-    "Create a healthy meal plan for a week"
+    "What are the benefits of meditation?"
   ]
 
   return (
@@ -253,17 +283,17 @@ export default function Home() {
               {connectionTesting ? (
                 <>
                   <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  <span>Connecting...</span>
+                  <span>Testing...</span>
                 </>
               ) : backendOnline ? (
                 <>
                   <Wifi className="w-3 h-3" />
-                  <span>Online</span>
+                  <span>Connected</span>
                 </>
               ) : (
                 <>
                   <WifiOff className="w-3 h-3" />
-                  <span>Offline</span>
+                  <span>Disconnected</span>
                 </>
               )}
             </motion.div>
@@ -288,7 +318,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex space-x-2 sm:space-x-3 mb-6 sm:mb-8 overflow-x-auto pb-2 scrollbar-hide"
+          className="flex space-x-2 sm:space-x-3 mb-6 sm:mb-8 overflow-x-auto pb-2"
         >
           {tabs.map((tab) => (
             <motion.button
@@ -340,43 +370,49 @@ export default function Home() {
                           <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                         </motion.div>
                         <h3 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                          Welcome to GenzAI Pro! 🚀
+                          {backendOnline ? 'Welcome to GenzAI Pro! 🚀' : 'Checking Connection...'}
                         </h3>
-                        <p className="text-sm sm:text-lg opacity-80 mb-2">Your advanced AI assistant is ready to help.</p>
-                        <p className="text-xs sm:text-base opacity-70 mb-6">Ask anything - I'll find the best answer using multiple AI models!</p>
                         
-                        {/* Connection Status Alert */}
-                        {!backendOnline && !connectionTesting && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-2xl max-w-md mx-auto"
-                          >
-                            <div className="flex items-center space-x-2 text-red-400">
-                              <WifiOff className="w-4 h-4" />
-                              <span className="text-sm font-medium">Backend services are offline</span>
+                        {backendOnline ? (
+                          <>
+                            <p className="text-sm sm:text-lg opacity-80 mb-2">Your AI assistant is ready to help!</p>
+                            <p className="text-xs sm:text-base opacity-70 mb-6">Ask anything - I'll find the best answer using multiple AI models!</p>
+                            
+                            {/* Quick Prompts */}
+                            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                              {quickPrompts.map((suggestion, idx) => (
+                                <motion.button
+                                  key={idx}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  onClick={() => setInput(suggestion)}
+                                  className="p-3 rounded-xl bg-white/10 backdrop-blur-lg border border-white/20 text-xs sm:text-sm opacity-80 hover:opacity-100 transition-all text-left hover:bg-white/20"
+                                >
+                                  {suggestion}
+                                </motion.button>
+                              ))}
                             </div>
-                            <p className="text-xs text-red-300/80 mt-1">
-                              Please check if the backend is running and try again later.
-                            </p>
-                          </motion.div>
+                          </>
+                        ) : (
+                          <div className="space-y-4">
+                            <p className="text-sm sm:text-lg opacity-80">Connecting to AI services...</p>
+                            {!connectionTesting && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-4 bg-red-500/20 border border-red-500/30 rounded-2xl max-w-md mx-auto"
+                              >
+                                <div className="flex items-center space-x-2 text-red-400 justify-center">
+                                  <WifiOff className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Connection failed</span>
+                                </div>
+                                <p className="text-xs text-red-300/80 mt-1 text-center">
+                                  Please refresh the page or check your connection
+                                </p>
+                              </motion.div>
+                            )}
+                          </div>
                         )}
-
-                        {/* Quick Prompts */}
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                          {quickPrompts.map((suggestion, idx) => (
-                            <motion.button
-                              key={idx}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              onClick={() => setInput(suggestion)}
-                              disabled={!backendOnline}
-                              className="p-3 rounded-xl bg-white/10 backdrop-blur-lg border border-white/20 text-xs sm:text-sm opacity-80 hover:opacity-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                            >
-                              {suggestion}
-                            </motion.button>
-                          ))}
-                        </div>
                       </motion.div>
                     ) : (
                       messages.map((message, index) => (
@@ -422,7 +458,7 @@ export default function Home() {
                                 <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
                               )}
                               
-                              {message.source && (
+                              {message.source && message.source !== 'system' && (
                                 <div className="flex items-center justify-between mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/20">
                                   <span className="text-xs opacity-70">
                                     Source: <span className="font-semibold">{message.source}</span>
@@ -436,278 +472,4 @@ export default function Home() {
                                       title="Listen to this message"
                                     >
                                       <Volume2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                                    </motion.button>
-                                  )}
-                                </div>
-                              )}
-                            </motion.div>
-                          </div>
-                        </motion.div>
-                      ))
-                    )}
-                    
-                    {/* Loading Indicator */}
-                    {isLoading && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex justify-start"
-                      >
-                        <div className="flex items-start space-x-2 sm:space-x-4 max-w-[90%] sm:max-w-[85%]">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
-                            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                          </div>
-                          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl rounded-bl-none p-3 sm:p-4">
-                            <div className="flex space-x-1 sm:space-x-2">
-                              {[0, 1, 2].map(i => (
-                                <motion.div
-                                  key={i}
-                                  animate={{ scale: [1, 1.2, 1] }}
-                                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                                  className="w-2 h-2 bg-white rounded-full"
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Input Area - Stack on mobile */}
-                  <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-                    <input
-                      type="text"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder={
-                        backendOnline 
-                          ? "Ask me anything... (Press Enter to send)"
-                          : "Backend offline - please try again later"
-                      }
-                      disabled={!backendOnline || isLoading}
-                      className="flex-1 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-lg placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <motion.button
-                      whileHover={{ scale: backendOnline ? 1.05 : 1 }}
-                      whileTap={{ scale: backendOnline ? 0.95 : 1 }}
-                      onClick={handleSend}
-                      disabled={!backendOnline || isLoading || !input.trim()}
-                      className="bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-2xl px-6 sm:px-8 py-3 sm:py-4 font-semibold disabled:opacity-50 flex items-center justify-center space-x-2 sm:space-x-3 shadow-lg disabled:cursor-not-allowed"
-                    >
-                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="text-sm sm:text-base">Send</span>
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Image Generation Tab */}
-              {activeTab === 'image' && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="h-[60vh] sm:h-[70vh] lg:h-[600px] flex flex-col"
-                >
-                  <div className="flex-1 overflow-y-auto mb-4 sm:mb-6">
-                    <div className="text-center mb-6 sm:mb-8">
-                      <motion.div
-                        animate={{ 
-                          y: [0, -10, 0],
-                          transition: { 
-                            duration: 3, 
-                            repeat: Infinity, 
-                            ease: "easeInOut" 
-                          }
-                        }}
-                        className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4"
-                      >
-                        <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                      </motion.div>
-                      <h3 className="text-xl sm:text-2xl font-bold mb-2">AI Image Generation</h3>
-                      <p className="text-sm sm:text-base opacity-70">Create amazing images with DALL-E 3</p>
-                    </div>
-
-                    <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
-                      <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-                        <input
-                          type="text"
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          placeholder="Describe the image you want to create..."
-                          disabled={!backendOnline}
-                          className="flex-1 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base placeholder-white/50 disabled:opacity-50"
-                        />
-                        <motion.button
-                          whileHover={{ scale: backendOnline ? 1.05 : 1 }}
-                          whileTap={{ scale: backendOnline ? 0.95 : 1 }}
-                          onClick={handleImageGeneration}
-                          disabled={!backendOnline || isLoading || !input.trim()}
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl px-6 sm:px-8 py-3 sm:py-4 font-semibold disabled:opacity-50 flex items-center justify-center space-x-2 sm:space-x-3 disabled:cursor-not-allowed"
-                        >
-                          <Image className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span className="text-sm sm:text-base">Generate</span>
-                        </motion.button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {[
-                          "A futuristic city with flying cars",
-                          "A beautiful sunset over mountains",
-                          "A cute robot playing guitar",
-                          "An abstract art piece with vibrant colors"
-                        ].map((prompt, idx) => (
-                          <motion.button
-                            key={idx}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setInput(prompt)}
-                            disabled={!backendOnline}
-                            className="p-3 rounded-xl bg-white/10 backdrop-blur-lg border border-white/20 text-left hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            <div className="text-xs sm:text-sm opacity-80">{prompt}</div>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Other Tabs */}
-              {!['chat', 'image'].includes(activeTab) && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="h-[60vh] sm:h-[70vh] lg:h-[600px] flex items-center justify-center"
-                >
-                  <div className="text-center px-4">
-                    <motion.div
-                      animate={{ 
-                        rotate: [0, 10, -10, 0],
-                        scale: [1, 1.1, 1],
-                        y: [0, -10, 0]
-                      }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                      className="w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-2xl"
-                    >
-                      {(() => {
-                        const TabIcon = tabs.find(tab => tab.id === activeTab)?.icon;
-                        return TabIcon ? <TabIcon className="w-8 h-8 sm:w-12 sm:h-12 text-white" /> : null;
-                      })()}
-                    </motion.div>
-                    <h3 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                      {tabs.find(tab => tab.id === activeTab)?.name}
-                    </h3>
-                    <p className="text-sm sm:text-lg opacity-70 max-w-md mx-auto mb-6">
-                      This advanced feature is coming soon! We're working hard to bring you the best AI experience.
-                    </p>
-                    
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="inline-flex items-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20"
-                    >
-                      <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400" />
-                      <span className="text-xs sm:text-sm">Under Active Development</span>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Sidebar - Hidden on mobile, visible on desktop */}
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="hidden xl:block rounded-3xl bg-black/20 backdrop-blur-lg border border-white/10 p-4 sm:p-6 shadow-2xl"
-          >
-            <h3 className="font-bold text-lg mb-4 sm:mb-6 flex items-center space-x-2">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-              <span>AI Services</span>
-            </h3>
-            
-            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-              {[
-                { name: 'OpenAI GPT-4', status: backendOnline ? 'active' : 'offline', usage: 'Primary AI' },
-                { name: 'Perplexity AI', status: backendOnline ? 'active' : 'offline', usage: 'Web Search' },
-                { name: 'DALL-E 3', status: backendOnline ? 'active' : 'offline', usage: 'Image Generation' },
-                { name: 'ElevenLabs', status: backendOnline ? 'active' : 'offline', usage: 'Text-to-Speech' },
-                { name: 'OpenRoute', status: backendOnline ? 'ready' : 'offline', usage: 'Navigation' }
-              ].map((service, index) => (
-                <motion.div
-                  key={service.name}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 + index * 0.1 }}
-                  className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-sm">{service.name}</div>
-                    <div className="text-xs opacity-70">{service.usage}</div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      service.status === 'active' ? 'bg-green-400 animate-pulse' : 
-                      service.status === 'ready' ? 'bg-blue-400' : 'bg-red-400'
-                    }`} />
-                    <span className="text-xs opacity-70">{service.status}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Stats Card */}
-            <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 mb-4 sm:mb-6">
-              <h4 className="font-semibold mb-2 sm:mb-3 flex items-center space-x-2">
-                <Brain className="w-4 h-4" />
-                <span>Smart Routing</span>
-              </h4>
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: backendOnline ? '94%' : '0%' }}
-                  transition={{ duration: 2, delay: 1 }}
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full"
-                />
-              </div>
-              <div className="flex justify-between text-xs opacity-70">
-                <span>AI Accuracy</span>
-                <span className={`font-bold ${backendOnline ? 'text-green-400' : 'text-red-400'}`}>
-                  {backendOnline ? '94%' : '0%'}
-                </span>
-              </div>
-            </div>
-
-            {/* Features Card */}
-            <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-green-500/20 to-blue-500/20">
-              <h4 className="font-semibold mb-2 sm:mb-3">Features</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  'Multi-AI', 'Smart Routing', 'Image Gen', 'Voice',
-                  'Real-time', 'Streaming', 'Navigation', 'Learning'
-                ].map((feature, idx) => (
-                  <motion.div
-                    key={feature}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1 + idx * 0.1 }}
-                    className="flex items-center space-x-1 p-2 rounded-lg bg-white/5"
-                  >
-                    <div className="w-1 h-1 bg-green-400 rounded-full" />
-                    <span className="opacity-80">{feature}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </div>
-  )
-}
+               
