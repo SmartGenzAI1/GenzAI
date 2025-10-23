@@ -1,0 +1,13 @@
+// frontend/vercel.json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": "https://your-render-app.onrender.com"
+  }
+}
