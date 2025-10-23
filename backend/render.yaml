@@ -1,11 +1,11 @@
 # backend/render.yaml
 services:
   - type: web
-    name: genz-ai-pro-backend
-    env: python
+    name: genz-ai-backend
+    env: docker
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    docker:
+      dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: OPENAI_API_KEY
         value: sk_5e725222b2e9921402d36a2ead04743b30881c49bec0fa77
