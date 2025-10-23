@@ -630,3 +630,18 @@ export default function Home() {
     </div>
   )
 }
+// Add this useEffect after the existing useEffect
+useEffect(() => {
+  const testBackendConnection = async () => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://genz-ai-backend4.onrender.com'
+      const response = await fetch(`${backendUrl}/health`)
+      const data = await response.json()
+      console.log('Backend status:', data)
+    } catch (error) {
+      console.error('Backend connection failed:', error)
+    }
+  }
+  
+  testBackendConnection()
+}, [])
