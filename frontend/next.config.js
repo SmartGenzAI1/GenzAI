@@ -1,10 +1,11 @@
 // frontend/next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
   images: {
-    domains: ['oaidalleapiprodscus.blob.core.windows.net'],
     unoptimized: true
-  },
+  }
 }
 
 module.exports = nextConfig
