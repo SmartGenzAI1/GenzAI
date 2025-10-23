@@ -1,0 +1,17 @@
+# backend/render.yaml
+services:
+  - type: web
+    name: genz-ai-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        value: your_openai_key
+      - key: ANTHROPIC_API_KEY  
+        value: your_anthropic_key
+      - key: DEEPSEEK_API_KEY
+        value: your_deepseek_key
+      - key: PERPLEXITY_API_KEY
+        value: your_perplexity_key
