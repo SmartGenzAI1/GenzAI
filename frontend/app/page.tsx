@@ -471,7 +471,14 @@ export default function Home() {
                   <div className="flex-1 overflow-y-auto mb-6">
                     <div className="text-center mb-8">
                       <motion.div
-                        animate={{ float: true }}
+                      animate={{ 
+  y: [0, -10, 0],
+  transition: { 
+    duration: 3, 
+    repeat: Infinity, 
+    ease: "easeInOut" 
+  }
+}}
                         className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4"
                       >
                         <Camera className="w-8 h-8 text-white" />
