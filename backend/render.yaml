@@ -2,16 +2,12 @@
 services:
   - type: web
     name: genz-ai-backend
-    env: docker
+    env: python
     plan: free
-    docker:
-      dockerfilePath: ./backend/Dockerfile
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
     envVars:
-      - key: OPENAI_API_KEY
-        value: sk_5e725222b2e9921402d36a2ead04743b30881c49bec0fa77
-      - key: PERPLEXITY_API_KEY
-        value: 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
-      - key: ELEVENLABS_API_KEY
-        value: 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
-      - key: OPENROUTE_API_KEY
-        value: 5b3ce3597851110001cf6248e67857c81c124a7f8f5d7b4c8c7e8a7a
+      - key: PYTHON_VERSION
+        value: 3.11.0
